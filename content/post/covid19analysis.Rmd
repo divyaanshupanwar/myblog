@@ -1,0 +1,335 @@
+---
+title: "How the COVID-19 pandemic has impacted Toronto and what can we do for the future"
+date: 2020-09-26
+categories: ["R"]
+tags: ["R Markdown", "plot", "regression"]
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Including required libraries
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(opendatatoronto)
+library(rmarkdown)
+
+
+```
+
+## Abstract
+
+In this study, we looked at the areas in Toronto where the COVID-19 virus has hit the hardest and explore the demographic of the population affected by the virus. We found that men and women are equally likely to die as a result of the virus and that the number of older people to die from the virus is significantly high . We also find that neighbourhoods such as Rouge and York University Heights have been one of the most impacted areas in Toronto due to the virus. Our findings have implications for dealing with future pandemic related situations as well as a possible second wave for the virus.
+
+
+## Introduction
+
+
+With the entire world coming to a complete standstill for an extended period of time as a result of the COVID-19 pandemic, it has now become an essential task to prepare for such eventualities in the future and deal with them in a more optimized way. In order to take on a task of such gargantuan proportions, it is important to draw conclusions from what we already do know about such a situation. Now that the number of cases being reported has lowered significantly from what they were about two or three months ago, it seems like a perfect time to start this task in order to anticipate the results of a second wave of the virus(if it arrives and vaccines are not in the market) and draw conclusions about how to deal the situation. This is an introductory study about the analysis of COVID-19 cases reported in Toronto which can be further extended as more data becomes available. 
+
+![Source : Global News](https://globalnews.ca/wp-content/uploads/2020/04/23071591-e1586796176875.jpg?quality=85&strip=all)
+
+
+In this study we analyzed the [covid-19-cases-in-toronto ](https://open.toronto.ca/dataset/covid-19-cases-in-toronto/) dataset and made some interesting observations. We found out that if out if 100 people in Toronto have died as a result of COVID-19 related conditions then **96.1** of them are over the age of 60. We also drew meaningful conclusions about the distribution of number of COVID-19 cases and fatalities based on neighbourhoods. We found out that **Mount Olive-Silverstone-Jamestown** and **West Humber-Clairvile** are two of the neighbourhoods in Toronto with some of the highest numbers of reported cases. We also found out that areas such as **York University Heights**, **Islington-City Centre West**, and **Rouge** have faced the highest numbers of casualties in Toronto as a result of the virus. Another conclusion we drew from the data was that areas like **Rouge** and **York University Heights** had one of the highest numbers of fatalities when a patient was never hospitalized. One of the most important observations we made was that unlike the rest of the world where the proportion of the male population dying from the virus was higher than the rest, in Toronto, the the percentages of men and women dying from the virus is proportional to their respective populations i.e. **men and women are equally likely to die as a result of the virus** in Toronto. 
+
+The study is an introductory one based on a single dataset. Since the COVID-19 situation is still unfolding, new data is being added periodically in the dataset. Also, since the situation hasn't concluded yet, the inferences made from the study are subject to change based on how the situation unfolds. When the situation is done and dusted, changes can be made to this paper which will be higher in accuracy and correctness. Also, this study is based on data which is publicly released so there is a chance that it might not reflect the real world situation.
+
+
+## Data
+
+As mentioned in the introduction section, in this study we used the "covid-19-cases-in-toronto" dataset obtained from the Open Data Toronto portal which was extracted using the [opendatatoronto](https://sharlagelfand.github.io/opendatatoronto/) package in R.
+
+
+
+```{r echo=FALSE,warning=FALSE, message = FALSE}
+
+#Importing required dataset using functions of theopendatatoronto library
+
+covid_pack<-search_packages("covid-19-cases-in-toronto")
+covid_resources<-covid_pack %>% list_package_resources()
+covid<-covid_resources %>% get_resource()
+
+```
+
+This data contained some information that was not of use to us and so we cleaned the dataset for our use by removing such information. The dataset obtained after cleaning the original data set from source is as follows :
+
+```{r, echo=FALSE, message=FALSE,warning=FALSE}
+
+#Cleaning yp the dataset
+
+
+#Replacing spaces between variable names with '.'
+names(covid)<-str_replace_all(names(covid), c(" " = "." , "," = "" ))
+
+#Removing columns not essential for our analysis 
+fin_data<-select(covid,-"_id",-Outbreak.Associated,-Classification,-Reported.Date,-Episode.Date,-Currently.Hospitalized,-Currently.in.ICU,-Currently.Intubated,-Ever.Intubated,-Ever.in.ICU,-FSA,-Source.of.Infection)
+
+#Removing abstract or unknown data
+fin_data<-filter(fin_data,Neighbourhood.Name!="NaN")
+fin_data<-filter(fin_data,Age.Group!="NaN" )
+fin_data<-filter(fin_data,Client.Gender!="UNKNOWN")
+
+#Displaying cleaned data set which is ready for our analysis
+paged_table(fin_data,list(rows.print=5))   
+
+
+```
+
+Here we can see that for each data entry there is a unique **ID** assigned. Also the **age group**, **neighbourhood name**, **gender**, **result of infection** for the client as well as the fact that whether the client was **ever hospitalized** as a result of conditions related the COVID-19 virus is listed in the data.
+
+Such a wide variety of information about people being infected by the virus allows us to look at and analyze many different aspects whose outcome might come useful in the case of a second wave of the virus or a similar pandemic situation that might occur in the future.
+
+### Inferences based on age groups
+
+Firstly, we will be looking at the distribution of number of reported cases based on the age groups of people graphically.
+
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#Plotting pie chart for number of COVID-19 cases based on differing age groups
+
+df1<-count(group_by(fin_data,Age.Group))
+
+df1 <- df1 %>% 
+  ungroup() %>% 
+  mutate(per=`n`/sum(`n`)) %>% 
+  arrange(desc(Age.Group))
+
+df1$label <- scales::percent(df1$per)
+plot1<-ggplot(data=df1)+
+  geom_bar(aes(x="", y=per, fill=Age.Group), stat="identity", width = 1)+
+  coord_polar("y", start=0)+
+  theme_void()+
+  geom_text(aes(x=1, y = cumsum(per) - per/2, label=label))+
+  labs(title="Pie Plot showing the distribution of COVID-19 cases in Toronto(in %)\n(based on age group)",caption="Figure (1)    \nSource : Toronto Public Health(2020)")
+
+plot1
+```
+
+In **Figure(1)**, we see that the there is some difference in distribution of number of cases of COVID-19 in Toronto based on age group. The larger % we see for the age groups 20-29, 30-39,40-49 and 50-59 could be owing to the fact that this group makes up a large chunk of the workforce in the city. Hence, they would be more exposed to contracting the virus. These numbers are something to be expected but also suggest some more measures can be taken to reduce the exposure of the older population.
+
+It would also be useful to see the distribution of the number of fatalities as a result of COVID-19 based on age groups.
+
+
+```{r,echo=FALSE,,message=FALSE,warning=FALSE}
+#Plotting pie chart for number of fatalities from COVID-19 based on differing age groups
+
+df2<-count(group_by(filter(fin_data,Outcome=="FATAL"),Age.Group))
+
+df2 <- df2 %>% 
+  ungroup() %>% 
+  mutate(per=`n`/sum(`n`)) %>% 
+  arrange(desc(Age.Group))
+
+df2$label <- scales::percent(df2$per)
+plot2<-ggplot(data=df2)+
+  geom_bar(aes(x="", y=per, fill=Age.Group), stat="identity", width = 1)+
+  coord_polar("y", start=0)+
+  theme_void()+
+  geom_text(aes(x=1, y = cumsum(per) - per/2, label=label))+
+  labs(title="Pie Plot showing the distribution of fatalities due to COVID-19 in Toronto(in %)\n(based on age group)",caption="Figure (2)    \nSource : Toronto Public Health(2020)")
+
+plot2
+
+```
+
+In **Figure(2)**, we observe higher rates of fatality among the older age groups. Again, this is something to be expected since the ability of the human body to fight off infections and viruses reduces with age. However, the percentages are staggering. The 60+ age group aggregated together comprises of a whopping **96.1 %** of total fatalities as a result of COVID-19. 
+
+### Inferences regarding neighbourhood
+
+Another feature of the data that we can use to gather more information about how the virus has affected the city of Toronto is to see which areas in the city it has impacted the most. 
+
+We look at the total number of COVID-19 cases per neighborhood and list the five areas which the virus has impacted the most. 
+
+```{r,echo=FALSE,,message=FALSE,warning=FALSE}
+#Making horizontal column plot for top 5 neighbourhoods with most COVID-19 cases
+
+df3<-count(group_by(fin_data,Neighbourhood.Name))
+
+df4<-arrange(df3,desc(n))
+
+df4<-arrange(df4,desc(n))
+df4<-df4[1:5,]
+
+plot3<-ggplot(df4)+
+  geom_col(aes(x=reorder(Neighbourhood.Name, n),y=n),fill="yellow")+     
+  coord_flip()+
+  labs(x= "Neighbourhood Name",y="Number of Cases",title="Top 5 Neighbourhoods in Toronto with Highest Number\n of COVID-19 Cases",caption = "Figure (3)    \nSource : Toronto Public Health(2020)")
+
+plot3
+```
+
+In **Figure(3)** see that **Mount Olive-Silverstone-Jamestown**, **West Humber-Clairvile**, **Glenfield-Jane Heights**, **Downsview-Roading-CFB** and **York University Heights** are the five areas in the city of Toronto in which the number of reported cases of the COVID-19 virus are maximum.
+
+To gain further insight into the area-wise distrubution of the effect of the virus, we also have to look at the areas in Toronto with the maximum number of fatalities related to the virus.
+
+
+```{r,echo=FALSE,,message=FALSE,warning=FALSE}
+#Making horizontal column plot for top 5 neighbourhoods with most COVID-19 related fatalities
+
+df5<-count(group_by(filter(fin_data,Outcome=="FATAL"),Neighbourhood.Name))
+df6<-arrange(df5,desc(n))
+df6<-df6[1:5,]
+
+plot4<-ggplot(df6)+
+  geom_col(aes(x=reorder(Neighbourhood.Name, n),y=n),fill="red")+
+  labs(x= "Neighbourhood Name",y="Number of Fatalities",title="Top 5 Neighbourhoods in Toronto with Highest Number of \nCOVID-19 Related Fatalities",caption = "Figure (4)    \nSource : Toronto Public Health(2020)")+
+  coord_flip()
+
+plot4
+```
+
+From **Figure(4)** we observe that **York University Heights**, **Islington-City Centre West**, **Rouge**, **Humber Heights-Westmount** and **Birchcliffe-Cliffside** are the five neighbourhoods in Toronto with the most number of fatalities as a result of COVID-19.
+
+It is worth noting that the differences between the numbers at the top and at the bottom of our top five data is not very high which suggests that might be more neighbourhoods with similar but lower numbers of cases and fatalities.
+
+To gather how much the local enforcement agencies in the area have been successful in making people realize the severity of the situation and how much they have been able to take the initiative to gauge the situation due to the virus in their area, we need to look at the data for the neighbourhoods with the number of cases where a person not being hospitalized for the virus may have resulted in their unfortunate demise.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#Plotting horizontal column plot for top 5 neighbourhoods with most number of fatalities for person diagnosed not being never hospitalized
+
+df7<-filter(fin_data,Ever.Hospitalized=="No" & Outcome=="FATAL")
+
+df8<-count(group_by(df7,Neighbourhood.Name))
+df8<-arrange(df8,desc(n))
+df8<-df8[1:5,]
+plot5<-ggplot(df8)+
+  geom_col(aes(x=reorder(Neighbourhood.Name, n),y=n),fill="blue")+
+  labs(x= "Neighbourhood Name",y="Number of Such Occurences",title="Top 5 Neighbourhoods in Toronto with Highest Number of \n Fatalities when a Patient was Not Hospitalized",caption = "Figure (5)    \nSource : Toronto Public Health(2020)")+
+  coord_flip()
+
+plot5
+
+```
+
+
+**Rouge** and **Islington-City Centre West** can be highlighted as the areas where the number of people who were never hospitalized died the maximum amount in numbers with **Morningslide**, **Guildwood** and **Clairlea-Birchmount** coming close among the top five for the same(as seen in **Figure(5)**) 
+
+It is also worth noting that **Rouge** and **Islington-City Centre West** also appeared in **Figure(4)** for the number of fatalities by neighbourhood. This draws a subjective conclusion that these areas failed to deal with the situation as well as the other areas did.
+
+### Inferences about gender
+
+According to [data](https://globalhealth5050.org/the-sex-gender-and-covid-19-project/men-sex-gender-and-covid-19/) collected worldwide about how the COVID-19 virus has impacted different genders,it has been found out that men and women are almost equally likely to contract the virus whereas the trend suggests that the percentage of male casualties is greater than the percentage of female casualties. 
+
+We will be looking at whether the same worldwide trend is followed in Toronto or there is more to it.
+
+First, we will be looking at the percentage of COVID-19 cases in Toronto based on gender.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#Plotting pie chart for number of COVID-19 cases based on differing gender
+
+
+df_g1<-count(group_by(fin_data,Client.Gender))
+
+df_g1 <- df_g1 %>% 
+  ungroup() %>% 
+  mutate(per=`n`/sum(`n`)) %>% 
+  arrange(desc(Client.Gender))
+
+df_g1$label <- scales::percent(df_g1$per)
+plot6<-ggplot(data=df_g1)+
+  geom_bar(aes(x="", y=per, fill=Client.Gender), stat="identity", width = 1)+
+  coord_polar("y", start=0)+
+  theme_void()+
+  geom_text(aes(x=1, y = cumsum(per) - per/2, label=label))+
+  labs(title="Pie Plot showing the distribution of COVID-19 cases in Toronto(in %)\n(based on gender)",caption="Figure (6)    \nSource : Toronto Public Health(2020)")
+
+plot6
+```
+
+It can be seen in **Figure(6)** that the number of the female population contracting the COVID-19 virus is more than the female population.
+According to data which is now archived, the [gender breakdown of the population of Toronto](https://worldpopulationreview.com/world-cities/toronto-population) is expected to be 52% female and 48% male.
+
+Our data of the COVID-19 cases reported by gender loosely corroborates with the worldwide trend as we can see in the pie chart that out of all the people who have been reported to have contracted the COVID-19 virus in Toronto the percentage for women is about **53.86 %** and that for men is **46.09 %** 
+
+We now look at the percentages of fatalities related to COVID-19 by gender.
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#Plotting pie chart for number of fatalities from COVID-19 based on differing genders
+
+
+df_g2<-count(group_by(filter(fin_data,Outcome=="FATAL"),Client.Gender))
+
+df_g2 <- df_g2 %>% 
+  ungroup() %>% 
+  mutate(per=`n`/sum(`n`)) %>% 
+  arrange(desc(Client.Gender))
+
+df_g2$label <- scales::percent(df_g2$per)
+plot7<-ggplot(data=df_g2)+
+  geom_bar(aes(x="", y=per, fill=Client.Gender), stat="identity", width = 1)+
+  coord_polar("y", start=0)+
+  theme_void()+
+  geom_text(aes(x=1, y = cumsum(per) - per/2, label=label))+
+  labs(title="Pie Plot showing the distribution of fatalities due to COVID-19 in Toronto(in %)\n(based on gender)",caption="Figure (7)    \nSource : Toronto Public Health(2020)")
+
+plot7
+
+```
+
+Interestingly, in **Figure(7)** we see that the percentage of fatalities for  the female gender is **54.2 %** and that for men is **45.8%**. This is almost proportional to the gender breakdown of the population of Toronto which leads us to conclude that women and men are equally likely to die due to COVID-19 related conditions in Toronto. This is opposing the worldwide trend that men are more likely to die due to COVID-19 related conditions (as mentioned at the start).
+
+## Discussion
+
+The main point of our study is to provide information that can be useful in preparing for or tackling a future pandemic situation similar to what we have now.
+
+Our main age related inference was that out of the total number of people who suffered a fatality due to a condition related to COVID-19, 96.1% were aged 60 and more. Something which can be done in the long term is to set a threshold number of cases above which a total curfew will be placed on people aged 60 and people living in close proximity with someone like them. Hopefully, adequate monetary support also should be provided for the same if it comes to that. 
+
+We also isolated and pointed out at neighbourhoods such as York University Heights, Islington-City Centre West, and Rouge where the number of fatalities and cases stand out. To ensure this doesn't happen the next time a situation like the present unfolds, the City of Toronto could discuss the shortcomings and difficulties various districts areas faced in order to form a general plan of action which benefits all of them.
+
+A balanced proportion of fatalities as a result of conditions related to COVID-19 in the male and female population stands out because it doesn't follow the global trend. This is a good result as there doesn't need to be separate planning for citizens belonging to different genders to overcome a pandemic.
+
+## Weaknesses and next steps
+
+There are some weaknesses in the study that we conducted. One of them is the removal of incomplete data and dropping of columns from the original data set extracted. at the start of the analysis. Hence the results we obtain are not exactly representative of the population of COVID-19 patients in Toronto.
+
+Another weakness is our decision to take the number of cases in the dataset as 'PROBABLE' to also be 'CONFIRMED'. The mindset behind this decision was that the Ontario Ministry of Health [defines a 'PROBABLE' case](http://www.health.gov.on.ca/en/pro/programs/publichealth/coronavirus/docs/2019_case_definition.pdf) in a way which almost certainly resembles a 'CONFIRMED' case (check the link for more info).
+
+Furthermore, there is always a case that there might be some other factors that will influence the kind of nature of the inferences that we have made. An example of this can be the higher than average age of the population in an area resulting in higher than expected fatalities.
+
+To eliminate these weaknesses, we would need more information which is not at present a part of the data set that we have used. This information may be present in the form of data which has not yet been released to the public and might be after the pandemic is over.
+
+As mentioned in the introduction, this is an introductary study and much more can be added to it over time in order to make it more comprehensive.
+
+
+
+## References and Citations
+
+- The Open Data Toronto portal. URL, https://open.toronto.ca/
+
+
+- R Core Team (2020). R: A language and environment for statistical computing. R, Foundation for Statistical Computing, Vienna, Austria. URL, https://www.R-project.org/.
+
+- Wickham et al., (2019). Welcome to the tidyverse. Journal of Open Source Software, 4(43), 1686,
+https://doi.org/10.21105/joss.01686
+
+
+- Hadley Wickham, Romain François, Lionel Henry and Kirill Müller (2020). dplyr: A Grammar of Data Manipulation. R
+  package version 1.0.2. https://CRAN.R-project.org/package=dplyr
+
+- H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016.
+
+
+- Sharla Gelfand (2020). opendatatoronto: Access the City of Toronto Open Data Portal. R package version 0.1.3.
+https://CRAN.R-project.org/package=opendatatoronto
+
+- JJ Allaire and Yihui Xie and Jonathan McPherson and Javier Luraschi and Kevin Ushey and Aron Atkins and Hadley 
+Wickham and Joe Cheng and Winston Chang and Richard Iannone (2020). rmarkdown: Dynamic Documents for R. R package version 2.3. URL https://rmarkdown.rstudio.com.
+
+
+- Global Health 5050. URL, https://globalhealth5050.org/the-sex-gender-and-covid-19-project/men-sex-gender-and-covid-19/
+
+- Ontario Ministry of Health. URL, http://www.health.gov.on.ca/en/pro/programs/publichealth/coronavirus/docs/2019_case_definition.pdf
+
+
+
+***
+
+
+
+**Check out my GitHub repo here :** [https://github.com/divyaanshupanwar/myblog](https://github.com/divyaanshupanwar/myblog) 
+
